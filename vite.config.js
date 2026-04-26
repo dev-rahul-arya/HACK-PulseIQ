@@ -58,6 +58,10 @@ export default defineConfig(({ mode }) => {
       anthropicProxy(env),
       VitePWA({
         registerType: 'autoUpdate',
+        devOptions: {
+          enabled: true,
+          type: 'module',
+        },
         includeAssets: ['favicon.svg', 'icon.svg', 'icon-maskable.svg'],
         manifest: {
           name: 'PulseIQ Health Intelligence',

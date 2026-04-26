@@ -8,7 +8,6 @@ import { getWeeklyStory } from '../../services/ai';
 import { getProfile } from '../../services/profile';
 import { fmtRelativeDate } from '../../utils/formatters';
 import { FeedbackButtons } from './FeedbackButtons';
-import { FollowUpChat } from './FollowUpChat';
 
 export function InsightsTab() {
   const [hasData, setHasData] = useState(false);
@@ -61,7 +60,7 @@ export function InsightsTab() {
       const newId = await db.aiInsights.add({
         kind: 'weekly',
         date: new Date().toISOString().slice(0, 10),
-        payload: { ...result, dataSnapshot: payload },
+        payload: result,
         createdAt: new Date().toISOString(),
       });
       setWeeklyId(newId);
@@ -151,11 +150,6 @@ export function InsightsTab() {
                     </p>
                   )}
                   <FeedbackButtons insightId={weeklyId} />
-                  <FollowUpChat
-                    insightId={weeklyId}
-                    insightSummary={weekly.keyTakeaway || weekly.story.split('\n')[0]}
-                    contextSummary={summarizeContext(weekly.dataSnapshot)}
-                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -211,12 +205,6 @@ export function InsightsTab() {
                               : ''}
                           </p>
                           <FeedbackButtons insightId={row.id} compact />
-                          <FollowUpChat
-                            insightId={row.id}
-                            insightSummary={row.payload.insight}
-                            contextSummary={summarizeContext(row.payload.dataSnapshot)}
-                            compact
-                          />
                         </div>
                       </motion.div>
                     )}
@@ -229,21 +217,4 @@ export function InsightsTab() {
       )}
     </div>
   );
-}
-
-function summarizeContext(snapshot) {
-  if (!snapshot) {
-    return 'No structured snapshot saved with this insight; answer based only on what is in the insight text.';
-  }
-  // Compact, line-per-field — easier for Claude than raw JSON.
-  const lines = [];
-  for (const [k, v] of Object.entries(snapshot)) {
-    if (v == null || (Array.isArray(v) && v.length === 0)) continue;
-    if (Array.isArray(v) || typeof v === 'object') {
-      lines.push(`${k}: ${JSON.stringify(v)}`);
-    } else {
-      lines.push(`${k}: ${v}`);
-    }
-  }
-  return lines.join('\n');
 }

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { useStore, TABS } from '../../store/useStore';
+import { Link } from 'react-router-dom';
+import { TABS } from '../../store/useStore';
 
 const ICONS = {
   today: (
@@ -39,10 +40,7 @@ const LABELS = {
   profile: 'Profile',
 };
 
-export function BottomNav() {
-  const activeTab = useStore((s) => s.activeTab);
-  const setActiveTab = useStore((s) => s.setActiveTab);
-
+export function BottomNav({ activeTab }) {
   return (
     <nav
       className="fixed bottom-0 inset-x-0 z-30 safe-bottom bg-surface/95 backdrop-blur-xl border-t border-white/5"
@@ -53,9 +51,8 @@ export function BottomNav() {
           const active = activeTab === tab;
           return (
             <li key={tab} className="flex-1">
-              <button
-                type="button"
-                onClick={() => setActiveTab(tab)}
+              <Link
+                to={`/app/${tab}`}
                 aria-label={LABELS[tab]}
                 aria-current={active ? 'page' : undefined}
                 className="relative w-full flex flex-col items-center gap-1 py-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent-mental/60"
@@ -83,12 +80,11 @@ export function BottomNav() {
                 {active && (
                   <motion.span
                     layoutId="nav-pill"
-                    aria-hidden="true"
-                    className="absolute top-0 inset-x-0 mx-auto h-[2px] w-8 bg-white rounded-full"
+                    className="absolute -top-px left-1/2 -translate-x-1/2 h-[2px] w-8 bg-white rounded-full"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
-              </button>
+              </Link>
             </li>
           );
         })}

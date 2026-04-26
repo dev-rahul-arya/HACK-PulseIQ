@@ -134,7 +134,7 @@ export function TodayTab() {
       const newId = await db.aiInsights.add({
         kind: 'daily',
         date: dk,
-        payload: { ...result, dataSnapshot: payload },
+        payload: result,
         createdAt: new Date().toISOString(),
       });
       setInsightId(newId);

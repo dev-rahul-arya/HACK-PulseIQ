@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useStore } from '../../store/useStore';
+import { useParams, Navigate } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
 import { TodayTab } from '../dashboard/TodayTab';
 import { TimelineTab } from '../timeline/TimelineTab';
@@ -15,8 +15,13 @@ const TAB_COMPONENTS = {
 };
 
 export function Shell() {
-  const activeTab = useStore((s) => s.activeTab);
-  const ActiveComponent = TAB_COMPONENTS[activeTab];
+  const { tab } = useParams();
+  
+  if (!TAB_COMPONENTS[tab]) {
+    return <Navigate to="/app/today" replace />;
+  }
+
+  const ActiveComponent = TAB_COMPONENTS[tab];
 
   return (
     <div className="min-h-svh bg-background text-textPrimary">
@@ -26,7 +31,7 @@ export function Shell() {
       <main id="main-content" className="max-w-lg mx-auto pb-28" tabIndex={-1}>
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeTab}
+            key={tab}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -36,7 +41,7 @@ export function Shell() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <BottomNav />
+      <BottomNav activeTab={tab} />
       <AddDataModal />
     </div>
   );

@@ -141,67 +141,6 @@ Reply with ONLY a JSON object, no prose, no fences:
   }
 }
 
-const SYSTEM_FOLLOWUP = `You are PulseIQ's follow-up explainer. The user asks
-short questions about an insight you previously gave. Answer in 1–3 plain,
-warm sentences. Cite the specific signal driving each claim ("your last 3 nights
-averaged 6.0h"). Never diagnose, never prescribe. If a question is outside the
-data you were given, say so plainly and suggest what they could log to find out.`;
-
-export async function askFollowUp({
-  insightSummary,
-  contextSummary,
-  history = [],
-  question,
-  focusGoals = [],
-}) {
-  const messages = [
-    {
-      role: 'user',
-      content: `Original insight: "${insightSummary}"
-
-Relevant data the insight was based on:
-${contextSummary}
-
-The user is now asking follow-up questions. Reply concisely.`,
-    },
-    {
-      role: 'assistant',
-      content: 'Understood. I will answer follow-ups based on that data, plainly and without diagnosing.',
-    },
-    ...history.flatMap((turn) => [
-      { role: 'user', content: turn.user },
-      { role: 'assistant', content: turn.assistant },
-    ]),
-    { role: 'user', content: question },
-  ];
-
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    throw new Error('offline');
-  }
-  const res = await fetch('/api/ai', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 350,
-      system: SYSTEM_FOLLOWUP + focusBlock(focusGoals),
-      messages,
-    }),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Claude API ${res.status}: ${txt.slice(0, 200)}`);
-  }
-  const data = await res.json();
-  const text = (data.content || [])
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('\n')
-    .trim();
-  if (!text) throw new Error('Empty follow-up response');
-  return { answer: text, generatedAt: new Date().toISOString() };
-}
-
 // ---- Fallbacks for demo if API fails ----
 function mockDailyInsight(p) {
   const sleep = p.sleepSummary || 'about 7h';
