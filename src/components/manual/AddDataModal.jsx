@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '../ui/Button';
 import { useStore } from '../../store/useStore';
@@ -35,6 +35,15 @@ export function AddDataModal() {
   const close = useStore((s) => s.closeAddModal);
   const [category, setCategory] = useState('mood');
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, close]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -46,6 +55,7 @@ export function AddDataModal() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={close}
+            aria-hidden="true"
             className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
           />
           <motion.div
@@ -54,19 +64,37 @@ export function AddDataModal() {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-data-title"
             className="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto bg-surface rounded-t-3xl border-t border-white/5 shadow-card max-h-[85vh] overflow-y-auto safe-bottom"
           >
             <div className="flex justify-center pt-3">
-              <div className="h-1 w-10 rounded-full bg-white/15" />
+              <div className="h-1 w-10 rounded-full bg-white/15" aria-hidden="true" />
             </div>
             <div className="px-5 pt-4 pb-6">
-              <h2 className="text-xl font-semibold mb-4">Add data</h2>
-              <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-3 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 id="add-data-title" className="text-xl font-semibold">Add data</h2>
+                <button
+                  type="button"
+                  onClick={close}
+                  aria-label="Close add data sheet"
+                  className="text-textSecondary/60 hover:text-textPrimary p-2 rounded-full hover:bg-white/5"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M1 1L13 13M1 13L13 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+              <div role="tablist" aria-label="Data categories" className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-3 mb-4">
                 {CATEGORIES.map((c) => {
                   const active = category === c.key;
                   return (
                     <motion.button
                       key={c.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setCategory(c.key)}
                       className={

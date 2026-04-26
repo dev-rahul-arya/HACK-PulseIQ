@@ -86,13 +86,30 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
-          // Don't cache the AI proxy — always go to network for fresh insights.
-          navigateFallbackDenylist: [/^\/api\//],
+          globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+          // SPA: any unmatched navigation falls back to the cached index.html so
+          // the app boots offline.
+          navigateFallback: '/index.html',
+          // Don't intercept the AI proxy or auth endpoints — always go to network.
+          navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
           runtimeCaching: [
             {
               urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
               handler: 'NetworkOnly',
+            },
+            {
+              // Cache Google Fonts stylesheets if any are pulled in.
+              urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com',
+              handler: 'StaleWhileRevalidate',
+              options: { cacheName: 'google-fonts-styles' },
+            },
+            {
+              urlPattern: ({ url }) => url.origin === 'https://fonts.gstatic.com',
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-files',
+                expiration: { maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              },
             },
           ],
         },

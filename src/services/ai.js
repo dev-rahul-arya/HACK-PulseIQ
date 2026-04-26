@@ -4,6 +4,9 @@
 const MODEL = 'claude-haiku-4-5-20251001';
 
 async function callClaude({ system, user, max_tokens = 600 }) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error('offline');
+  }
   const res = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -58,6 +61,12 @@ and you always frame observations as questions for a clinician when relevant.
 You speak in plain, warm language. You always cite the specific signal that
 drove an observation (e.g., "your resting HR is 8 bpm above your 14-day baseline").`;
 
+function focusBlock(goals) {
+  if (!goals || !goals.length) return '';
+  const list = goals.map((g) => `- ${g}`).join('\n');
+  return `\n\nUser's current focus areas (tailor your observation and nudge toward these when relevant; do not force the connection if the data does not support it):\n${list}`;
+}
+
 export async function getDailyInsight(payload) {
   const user = `Here is the user's recent data. Use it to write today's insight.
 
@@ -80,7 +89,11 @@ Reply with ONLY a JSON object, no prose, no fences:
   "confidence": <integer 1-5>
 }`;
   try {
-    const { text } = await callClaude({ system: SYSTEM_DAILY, user, max_tokens: 400 });
+    const { text } = await callClaude({
+      system: SYSTEM_DAILY + focusBlock(payload.focusGoals),
+      user,
+      max_tokens: 400,
+    });
     const parsed = extractJSON(text);
     if (!parsed?.insight) throw new Error('No insight in response');
     return {
@@ -110,7 +123,11 @@ Reply with ONLY a JSON object, no prose, no fences:
   "keyTakeaway": "<one-sentence summary>"
 }`;
   try {
-    const { text } = await callClaude({ system: SYSTEM_WEEKLY, user, max_tokens: 800 });
+    const { text } = await callClaude({
+      system: SYSTEM_WEEKLY + focusBlock(payload.focusGoals),
+      user,
+      max_tokens: 800,
+    });
     const parsed = extractJSON(text);
     if (!parsed?.story) throw new Error('No story in response');
     return {
@@ -122,6 +139,67 @@ Reply with ONLY a JSON object, no prose, no fences:
   } catch (err) {
     return { ...mockWeeklyStory(), error: String(err.message || err) };
   }
+}
+
+const SYSTEM_FOLLOWUP = `You are PulseIQ's follow-up explainer. The user asks
+short questions about an insight you previously gave. Answer in 1–3 plain,
+warm sentences. Cite the specific signal driving each claim ("your last 3 nights
+averaged 6.0h"). Never diagnose, never prescribe. If a question is outside the
+data you were given, say so plainly and suggest what they could log to find out.`;
+
+export async function askFollowUp({
+  insightSummary,
+  contextSummary,
+  history = [],
+  question,
+  focusGoals = [],
+}) {
+  const messages = [
+    {
+      role: 'user',
+      content: `Original insight: "${insightSummary}"
+
+Relevant data the insight was based on:
+${contextSummary}
+
+The user is now asking follow-up questions. Reply concisely.`,
+    },
+    {
+      role: 'assistant',
+      content: 'Understood. I will answer follow-ups based on that data, plainly and without diagnosing.',
+    },
+    ...history.flatMap((turn) => [
+      { role: 'user', content: turn.user },
+      { role: 'assistant', content: turn.assistant },
+    ]),
+    { role: 'user', content: question },
+  ];
+
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error('offline');
+  }
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 350,
+      system: SYSTEM_FOLLOWUP + focusBlock(focusGoals),
+      messages,
+    }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Claude API ${res.status}: ${txt.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const text = (data.content || [])
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n')
+    .trim();
+  if (!text) throw new Error('Empty follow-up response');
+  return { answer: text, generatedAt: new Date().toISOString() };
 }
 
 // ---- Fallbacks for demo if API fails ----

@@ -33,12 +33,17 @@ function buildDay(dayDate, dayIndex, rng) {
   const isWeekend = [0, 6].includes(dayDate.getDay());
   const inRoughStretch = dayIndex >= 12 && dayIndex <= 16;
   const inRecoveryStretch = dayIndex >= 17 && dayIndex <= 19;
+  // A second, milder dip in the last week so today's risk score is not zero.
+  // Days 25–28 (4 nights ending yesterday) trend toward 6h sleep + small HR rise.
+  const inRecentDip = dayIndex >= 25 && dayIndex <= 28;
 
   // ---- Sleep (one record per night, "previous night" semantics) ----
-  // Weeknight base 7.2h, weekend 7.8h, rough stretch 5.0h, recovery +0.5h.
+  // Weeknight base 7.2h, weekend 7.8h, rough stretch 5.0h, recovery +0.5h,
+  // recent dip ~6h (mild fatigue we want to surface in today's insight).
   let sleepHours = (isWeekend ? 7.8 : 7.2) + (rng() - 0.5) * 0.6;
   if (inRoughStretch) sleepHours = 5.0 + (rng() - 0.5) * 0.8;
   if (inRecoveryStretch) sleepHours += 0.5;
+  if (inRecentDip) sleepHours = 6.0 + (rng() - 0.5) * 0.6;
   sleepHours = Math.max(3.5, Math.min(9.5, sleepHours));
 
   const deepRatio = inRoughStretch ? 0.10 : 0.18 + (rng() - 0.5) * 0.04;
@@ -63,10 +68,12 @@ function buildDay(dayDate, dayIndex, rng) {
   });
 
   // ---- Resting HR (single morning reading) ----
-  // Baseline 58 bpm, +6 during rough stretch, +3 lingering in recovery.
+  // Baseline 58 bpm, +6 during rough stretch, +3 lingering in recovery,
+  // +4 during recent dip (shorter sleep nudges resting HR up).
   let restingHR = 58 + (rng() - 0.5) * 4;
   if (inRoughStretch) restingHR += 6;
   if (inRecoveryStretch) restingHR += 3;
+  if (inRecentDip) restingHR += 4;
   restingHR = Math.round(restingHR);
   records.push({
     type: 'restingHR',
@@ -81,6 +88,7 @@ function buildDay(dayDate, dayIndex, rng) {
   let hrv = 52 + (rng() - 0.5) * 8;
   if (inRoughStretch) hrv -= 14;
   if (inRecoveryStretch) hrv -= 6;
+  if (inRecentDip) hrv -= 8;
   hrv = Math.max(18, Math.round(hrv));
   records.push({
     type: 'hrv',

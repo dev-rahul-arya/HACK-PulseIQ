@@ -15,6 +15,7 @@ import { computeCircadianRisk } from '../../utils/calculations';
 import { fmtHours, fmtNumber, moodLabel } from '../../utils/formatters';
 import { useStore } from '../../store/useStore';
 import { getDailyInsight } from '../../services/ai';
+import { getProfile } from '../../services/profile';
 import { db, dayKey } from '../../db/db';
 
 export function TodayTab() {
@@ -28,6 +29,7 @@ export function TodayTab() {
   const [stepsSpark, setStepsSpark] = useState([]);
   const [moodToday, setMoodToday] = useState(null);
   const [insight, setInsight] = useState(null);
+  const [insightId, setInsightId] = useState(null);
   const [insightLoading, setInsightLoading] = useState(false);
 
   async function reload() {
@@ -69,6 +71,7 @@ export function TodayTab() {
       .first();
     if (cached) {
       setInsight(cached.payload);
+      setInsightId(cached.id);
     } else {
       void fetchDailyInsight(s, hrSeries, sleepSeries, stepsSeries, todayLogs, dk);
     }
@@ -111,6 +114,7 @@ export function TodayTab() {
         .map((l) => l.value);
       const moodVal = todayLogs.find((l) => l.category === 'mood')?.value;
 
+      const profile = await getProfile().catch(() => null);
       const payload = {
         sleepSummary: s.sleep ? `${s.sleep.value.toFixed(1)}h (deep ${(s.sleep.details?.deepHours ?? 0).toFixed(1)}h)` : null,
         restingHR: s.restingHR?.value,
@@ -123,15 +127,17 @@ export function TodayTab() {
         symptoms,
         avgSleep7d,
         avgRestingHR7d,
+        focusGoals: profile?.goals ?? [],
       };
       const result = await getDailyInsight(payload);
       setInsight(result);
-      await db.aiInsights.add({
+      const newId = await db.aiInsights.add({
         kind: 'daily',
         date: dk,
-        payload: result,
+        payload: { ...result, dataSnapshot: payload },
         createdAt: new Date().toISOString(),
       });
+      setInsightId(newId);
     } finally {
       setInsightLoading(false);
     }
@@ -148,6 +154,7 @@ export function TodayTab() {
       .toArray();
     for (const row of existing) await db.aiInsights.delete(row.id);
     setInsight(null);
+    setInsightId(null);
     const [hrSeries, sleepSeries, stepsSeries, todayLogs] = await Promise.all([
       dailySeries('restingHR', 14),
       dailySeries('sleep', 14),
@@ -217,6 +224,7 @@ export function TodayTab() {
               confidence={insight?.confidence}
               error={!!insight?.error}
               onRefresh={regenerateInsight}
+              insightId={insightId}
             />
             {insight?.source === 'fallback' && !insight?.error && (
               <p className="text-[10px] text-textSecondary/40 mt-2 text-center">

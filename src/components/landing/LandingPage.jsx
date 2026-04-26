@@ -1,17 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 export function LandingPage({ onEnterApp }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isStandalone, setIsStandalone] = useState(false);
-  const [showDesktopWarning, setShowDesktopWarning] = useState(true);
-  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
-    if (window.innerWidth > 768) {
-      setIsDesktop(true);
-    }
-
     const checkStandalone = () => {
       return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     };
@@ -44,36 +38,6 @@ export function LandingPage({ onEnterApp }) {
 
   return (
     <div className="min-h-screen bg-background text-textPrimary overflow-y-auto font-sans selection:bg-accent-sleep/30 scroll-smooth">
-      <AnimatePresence>
-        {isDesktop && showDesktopWarning && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="fixed top-4 left-4 right-4 z-50 max-w-lg mx-auto bg-surface border border-warning/30 shadow-card rounded-2xl p-4 flex justify-between items-center"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
-                <span className="text-warning text-sm">⚠️</span>
-              </div>
-              <p className="text-xs text-textSecondary font-medium leading-snug">
-                PulseIQ is a mobile-first PWA. For the intended experience, please view on a mobile device.
-              </p>
-            </div>
-            <button 
-              onClick={() => setShowDesktopWarning(false)} 
-              className="text-textSecondary/60 hover:text-textPrimary ml-3 p-2 rounded-full hover:bg-white/5 transition-colors shrink-0"
-              aria-label="Dismiss warning"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L13 13M1 13L13 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">

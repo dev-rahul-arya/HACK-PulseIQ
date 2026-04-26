@@ -54,10 +54,11 @@ export function BottomNav() {
           return (
             <li key={tab} className="flex-1">
               <button
+                type="button"
                 onClick={() => setActiveTab(tab)}
                 aria-label={LABELS[tab]}
                 aria-current={active ? 'page' : undefined}
-                className="relative w-full flex flex-col items-center gap-1 py-2 outline-none"
+                className="relative w-full flex flex-col items-center gap-1 py-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent-mental/60"
               >
                 <svg
                   width="26"
@@ -67,6 +68,7 @@ export function BottomNav() {
                   stroke={active ? '#FFFFFF' : '#7A7A82'}
                   strokeWidth="1.8"
                   className="transition-colors"
+                  aria-hidden="true"
                 >
                   {ICONS[tab]}
                 </svg>
@@ -81,7 +83,8 @@ export function BottomNav() {
                 {active && (
                   <motion.span
                     layoutId="nav-pill"
-                    className="absolute -top-px left-1/2 -translate-x-1/2 h-[2px] w-8 bg-white rounded-full"
+                    aria-hidden="true"
+                    className="absolute top-0 inset-x-0 mx-auto h-[2px] w-8 bg-white rounded-full"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}

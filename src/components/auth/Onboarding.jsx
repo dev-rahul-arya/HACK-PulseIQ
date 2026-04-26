@@ -60,8 +60,13 @@ export function Onboarding() {
     <div className="min-h-screen bg-background text-textPrimary flex flex-col px-6 py-12 safe-top safe-bottom">
       <div className="flex justify-between items-center mb-10 max-w-lg mx-auto w-full">
         {step > 1 ? (
-          <button onClick={handleBack} className="p-2 text-textSecondary hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+          <button
+            type="button"
+            onClick={handleBack}
+            aria-label="Go back to previous step"
+            className="p-2 text-textSecondary hover:text-white transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
           </button>
         ) : <div className="w-10" />}
         <div className="flex gap-2">

@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { Card } from '../ui/Card';
+import { FeedbackButtons } from '../insights/FeedbackButtons';
 
-export function InsightCard({ loading, insight, nudge, confidence, error, onRefresh }) {
+export function InsightCard({ loading, insight, nudge, confidence, error, onRefresh, insightId }) {
   if (loading) {
     return (
       <Card className="!p-5">
@@ -66,6 +67,7 @@ export function InsightCard({ loading, insight, nudge, confidence, error, onRefr
         <p className="text-[10px] text-textSecondary/40 mt-4">
           Educational, not a diagnosis. Talk to a clinician about anything that worries you.
         </p>
+        <FeedbackButtons insightId={insightId} />
       </Card>
     </motion.div>
   );

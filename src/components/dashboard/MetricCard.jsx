@@ -36,7 +36,11 @@ export function MetricCard({
             <p className="text-xs text-textSecondary/50 mt-1 truncate">{caption}</p>
           )}
         </div>
-        {spark && <div className="shrink-0 opacity-90">{spark}</div>}
+        {spark && (
+          <div className="shrink-0 opacity-90" aria-hidden="true">
+            {spark}
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -53,7 +57,7 @@ export function Spark({ values = [], width = 64, height = 28, color = '#FFFFFF' 
     .map((v, i) => `${i * stepX},${height - ((v - min) / range) * height}`)
     .join(' ');
   return (
-    <svg width={width} height={height} className="overflow-visible">
+    <svg width={width} height={height} className="overflow-visible" aria-hidden="true">
       <polyline
         points={points}
         fill="none"

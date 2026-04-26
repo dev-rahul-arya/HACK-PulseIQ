@@ -18,11 +18,19 @@ export function DaySelector({ selected, onSelect, days = 14 }) {
           const active = selected === k;
           const label = d.toLocaleDateString(undefined, { weekday: 'short' });
           const num = d.getDate();
+          const fullLabel = d.toLocaleDateString(undefined, {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+          });
           return (
             <motion.button
               key={k}
+              type="button"
               whileTap={{ scale: 0.95 }}
               onClick={() => onSelect(k)}
+              aria-label={fullLabel}
+              aria-pressed={active}
               className={
                 'flex flex-col items-center justify-center w-12 h-16 rounded-2xl border transition-colors ' +
                 (active
@@ -30,10 +38,10 @@ export function DaySelector({ selected, onSelect, days = 14 }) {
                   : 'bg-surface text-textPrimary border-white/5')
               }
             >
-              <span className="text-[10px] uppercase tracking-wider opacity-70">
+              <span className="text-[10px] uppercase tracking-wider opacity-70" aria-hidden="true">
                 {label}
               </span>
-              <span className="text-lg font-semibold tabular-nums mt-0.5">
+              <span className="text-lg font-semibold tabular-nums mt-0.5" aria-hidden="true">
                 {num}
               </span>
             </motion.button>

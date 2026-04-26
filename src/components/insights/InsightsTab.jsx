@@ -5,12 +5,16 @@ import { Button } from '../ui/Button';
 import { db } from '../../db/db';
 import { dailySeries, hasAnyData, recentManualLogs } from '../../db/queries';
 import { getWeeklyStory } from '../../services/ai';
+import { getProfile } from '../../services/profile';
 import { fmtRelativeDate } from '../../utils/formatters';
+import { FeedbackButtons } from './FeedbackButtons';
+import { FollowUpChat } from './FollowUpChat';
 
 export function InsightsTab() {
   const [hasData, setHasData] = useState(false);
   const [dailyInsights, setDailyInsights] = useState([]);
   const [weekly, setWeekly] = useState(null);
+  const [weeklyId, setWeeklyId] = useState(null);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
 
@@ -19,7 +23,10 @@ export function InsightsTab() {
     const all = await db.aiInsights.orderBy('id').reverse().toArray();
     setDailyInsights(all.filter((i) => i.kind === 'daily').slice(0, 7));
     const cachedWeekly = all.find((i) => i.kind === 'weekly');
-    if (cachedWeekly) setWeekly(cachedWeekly.payload);
+    if (cachedWeekly) {
+      setWeekly(cachedWeekly.payload);
+      setWeeklyId(cachedWeekly.id);
+    }
   }
 
   useEffect(() => {
@@ -36,6 +43,7 @@ export function InsightsTab() {
         dailySeries('steps', 7),
         recentManualLogs(20),
       ]);
+      const profile = await getProfile().catch(() => null);
       const payload = {
         sleepHoursByDay: sleep.map((r) => ({ date: r.dayKey, hours: r.value })),
         restingHRByDay: hr.map((r) => ({ date: r.dayKey, bpm: r.value })),
@@ -46,15 +54,17 @@ export function InsightsTab() {
           category: l.category,
           value: l.value,
         })),
+        focusGoals: profile?.goals ?? [],
       };
       const result = await getWeeklyStory(payload);
       setWeekly(result);
-      await db.aiInsights.add({
+      const newId = await db.aiInsights.add({
         kind: 'weekly',
         date: new Date().toISOString().slice(0, 10),
-        payload: result,
+        payload: { ...result, dataSnapshot: payload },
         createdAt: new Date().toISOString(),
       });
+      setWeeklyId(newId);
     } finally {
       setWeeklyLoading(false);
     }
@@ -140,6 +150,12 @@ export function InsightsTab() {
                       Showing fallback story (Claude unreachable).
                     </p>
                   )}
+                  <FeedbackButtons insightId={weeklyId} />
+                  <FollowUpChat
+                    insightId={weeklyId}
+                    insightSummary={weekly.keyTakeaway || weekly.story.split('\n')[0]}
+                    contextSummary={summarizeContext(weekly.dataSnapshot)}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -194,6 +210,13 @@ export function InsightsTab() {
                               ? ` · confidence ${row.payload.confidence}/5`
                               : ''}
                           </p>
+                          <FeedbackButtons insightId={row.id} compact />
+                          <FollowUpChat
+                            insightId={row.id}
+                            insightSummary={row.payload.insight}
+                            contextSummary={summarizeContext(row.payload.dataSnapshot)}
+                            compact
+                          />
                         </div>
                       </motion.div>
                     )}
@@ -206,4 +229,21 @@ export function InsightsTab() {
       )}
     </div>
   );
+}
+
+function summarizeContext(snapshot) {
+  if (!snapshot) {
+    return 'No structured snapshot saved with this insight; answer based only on what is in the insight text.';
+  }
+  // Compact, line-per-field — easier for Claude than raw JSON.
+  const lines = [];
+  for (const [k, v] of Object.entries(snapshot)) {
+    if (v == null || (Array.isArray(v) && v.length === 0)) continue;
+    if (Array.isArray(v) || typeof v === 'object') {
+      lines.push(`${k}: ${JSON.stringify(v)}`);
+    } else {
+      lines.push(`${k}: ${v}`);
+    }
+  }
+  return lines.join('\n');
 }

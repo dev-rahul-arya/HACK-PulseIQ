@@ -3,6 +3,9 @@ import { Shell } from './components/layout/Shell';
 import { LandingPage } from './components/landing/LandingPage';
 import { Login } from './components/auth/Login';
 import { Onboarding } from './components/auth/Onboarding';
+import { InstallGate, shouldGateInstall } from './components/auth/InstallGate';
+import { DesktopWarning } from './components/ui/DesktopWarning';
+import { OfflineBadge } from './components/ui/OfflineBadge';
 import { useStore } from './store/useStore';
 import { supabase } from './services/supabase';
 import { getProfile } from './services/profile';
@@ -21,6 +24,20 @@ const getInitialShowLanding = () => {
 export default function App() {
   const [showLanding, setShowLanding] = useState(getInitialShowLanding);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [needsInstall, setNeedsInstall] = useState(() => shouldGateInstall());
+
+  useEffect(() => {
+    const recheck = () => setNeedsInstall(shouldGateInstall());
+    window.addEventListener('resize', recheck);
+    window.addEventListener('appinstalled', recheck);
+    const mql = window.matchMedia('(display-mode: standalone)');
+    mql.addEventListener?.('change', recheck);
+    return () => {
+      window.removeEventListener('resize', recheck);
+      window.removeEventListener('appinstalled', recheck);
+      mql.removeEventListener?.('change', recheck);
+    };
+  }, []);
   const isAuthenticated = useStore((s) => s.isAuthenticated);
   const setIsAuthenticated = useStore((s) => s.setIsAuthenticated);
   const hasCompletedOnboarding = useStore((s) => s.hasCompletedOnboarding);
@@ -63,23 +80,28 @@ export default function App() {
     setShowLanding(false);
   };
 
+  let screen;
   if (showLanding) {
-    return <LandingPage onEnterApp={handleEnterApp} />;
+    screen = <LandingPage onEnterApp={handleEnterApp} />;
+  } else if (isInitializing || (isAuthenticated && hasCompletedOnboarding === null)) {
+    screen = <div className="min-h-screen bg-background flex justify-center items-center" />;
+  } else if (!isAuthenticated) {
+    screen = <Login />;
+  } else if (!hasCompletedOnboarding) {
+    screen = <Onboarding />;
+  } else if (needsInstall) {
+    screen = <InstallGate />;
+  } else {
+    screen = <Shell />;
   }
 
-  if (isInitializing || (isAuthenticated && hasCompletedOnboarding === null)) {
-    return <div className="min-h-screen bg-background flex justify-center items-center" />;
-  }
-
-  if (!isAuthenticated) {
-    return <Login />;
-  }
-
-  if (!hasCompletedOnboarding) {
-    return <Onboarding />;
-  }
-
-  return <Shell />;
+  return (
+    <>
+      <DesktopWarning />
+      <OfflineBadge />
+      {screen}
+    </>
+  );
 }
 
 

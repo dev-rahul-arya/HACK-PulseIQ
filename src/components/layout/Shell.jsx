@@ -20,7 +20,10 @@ export function Shell() {
 
   return (
     <div className="min-h-svh bg-background text-textPrimary">
-      <main className="max-w-lg mx-auto pb-28">
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+      <main id="main-content" className="max-w-lg mx-auto pb-28" tabIndex={-1}>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

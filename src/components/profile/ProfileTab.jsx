@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { ConnectedApps } from './ConnectedApps';
 import { ReminderSettings } from './ReminderSettings';
+import { DoctorReportCard } from './DoctorReportCard';
 import { getProfile, saveProfile } from '../../services/profile';
 import { clearAllData } from '../../db/db';
 import { useStore } from '../../store/useStore';
@@ -94,6 +95,8 @@ export function ProfileTab() {
       <ConnectedApps />
 
       <ReminderSettings />
+
+      <DoctorReportCard />
 
       <Card className="!p-5 mt-4">
         <p className="text-[11px] uppercase tracking-widest text-textSecondary/60">
@@ -195,13 +198,47 @@ export function ProfileTab() {
   );
 }
 
+const GOAL_PRESETS = [
+  'Better sleep',
+  'Reduce stress',
+  'Train for a race',
+  'Build consistent activity',
+  'Improve recovery / HRV',
+  'Track a chronic condition',
+];
+
 function ProfileEditor({ profile, onClose, onSave }) {
   const [form, setForm] = useState({
     displayName: profile.displayName,
     age: profile.age,
     heightCm: profile.heightCm,
     weightKg: profile.weightKg,
+    goals: profile.goals ?? [],
   });
+  const [customGoal, setCustomGoal] = useState('');
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const toggleGoal = (g) => {
+    setForm((f) => ({
+      ...f,
+      goals: f.goals.includes(g) ? f.goals.filter((x) => x !== g) : [...f.goals, g],
+    }));
+  };
+  const addCustomGoal = () => {
+    const g = customGoal.trim();
+    if (!g) return;
+    if (!form.goals.includes(g)) {
+      setForm((f) => ({ ...f, goals: [...f.goals, g] }));
+    }
+    setCustomGoal('');
+  };
   return (
     <>
       <motion.div
@@ -209,6 +246,7 @@ function ProfileEditor({ profile, onClose, onSave }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
+        aria-hidden="true"
         className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
       />
       <motion.div
@@ -216,13 +254,16 @@ function ProfileEditor({ profile, onClose, onSave }) {
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-        className="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto bg-surface rounded-t-3xl border-t border-white/5 shadow-card safe-bottom"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-profile-title"
+        className="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto bg-surface rounded-t-3xl border-t border-white/5 shadow-card safe-bottom max-h-[90vh] overflow-y-auto"
       >
         <div className="flex justify-center pt-3">
-          <div className="h-1 w-10 rounded-full bg-white/15" />
+          <div className="h-1 w-10 rounded-full bg-white/15" aria-hidden="true" />
         </div>
         <div className="px-5 pt-4 pb-6 space-y-3">
-          <h2 className="text-xl font-semibold mb-2">Edit profile</h2>
+          <h2 id="edit-profile-title" className="text-xl font-semibold mb-2">Edit profile</h2>
           <Field
             label="Name"
             value={form.displayName}
@@ -247,6 +288,49 @@ function ProfileEditor({ profile, onClose, onSave }) {
               value={form.weightKg}
               onChange={(v) => setForm({ ...form, weightKg: Number(v) })}
             />
+          </div>
+          <div className="pt-2">
+            <p className="text-xs text-textSecondary/60 mb-2">
+              Focus areas <span className="text-textSecondary/40">— Claude tailors insights to these</span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[...new Set([...GOAL_PRESETS, ...form.goals])].map((g) => {
+                const active = form.goals.includes(g);
+                return (
+                  <button
+                    type="button"
+                    key={g}
+                    onClick={() => toggleGoal(g)}
+                    aria-pressed={active}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                      active
+                        ? 'bg-accent-mental/20 border-accent-mental/40 text-textPrimary'
+                        : 'bg-elevated/60 border-white/5 text-textSecondary/80 hover:text-textPrimary'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={customGoal}
+                onChange={(e) => setCustomGoal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addCustomGoal();
+                  }
+                }}
+                placeholder="Add your own…"
+                className="flex-1 bg-elevated/60 border border-white/5 rounded-xl px-3 py-2 text-sm outline-none focus:border-white/20"
+              />
+              <Button variant="ghost" onClick={addCustomGoal} className="!px-3 !py-2 text-xs">
+                Add
+              </Button>
+            </div>
           </div>
           <div className="pt-3 flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>

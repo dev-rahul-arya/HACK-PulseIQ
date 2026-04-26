@@ -9,8 +9,13 @@ export function RiskRing({ score = 0, size = 168, stroke = 14 }) {
   const band = riskBand(score);
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="rotate-[-90deg]">
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`Circadian risk score ${score} out of 100, ${band.label} band`}
+    >
+      <svg width={size} height={size} className="rotate-[-90deg]" aria-hidden="true">
         <circle
           cx={size / 2}
           cy={size / 2}

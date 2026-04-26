@@ -4,6 +4,7 @@ export function Card({ children, className = '', interactive = false, ...rest })
   const Comp = interactive ? motion.button : motion.div;
   const interactiveProps = interactive
     ? {
+        type: 'button',
         whileTap: { scale: 0.98 },
         whileHover: { scale: 1.01 },
         transition: { type: 'spring', stiffness: 300, damping: 22 },
