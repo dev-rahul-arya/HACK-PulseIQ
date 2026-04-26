@@ -10,15 +10,50 @@ import { useStore } from '../../store/useStore';
 
 export function ProfileTab() {
   const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const setHasSyncedSampleData = useStore((s) => s.setHasSyncedSampleData);
+  const setIsAuthenticated = useStore((s) => s.setIsAuthenticated);
 
   useEffect(() => {
-    (async () => setProfile(await getProfile()))();
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const p = await getProfile();
+        if (mounted) setProfile(p);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
   }, []);
 
-  if (!profile) return null;
+  if (loading) {
+    return (
+      <div className="px-5 pt-32 safe-top flex justify-center">
+        <div className="w-6 h-6 border-2 border-accent-sleep/20 border-t-accent-sleep rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="px-5 pt-32 safe-top text-center flex flex-col items-center">
+        <div className="w-12 h-12 rounded-full bg-danger/10 text-danger flex items-center justify-center mb-4 text-xl font-bold">!</div>
+        <p className="text-textSecondary/80 text-sm mb-6 max-w-xs leading-relaxed">
+          We couldn't load your profile. This usually happens if your Supabase keys haven't been added to your .env.local file yet.
+        </p>
+        <Button variant="ghost" onClick={() => setIsAuthenticated(false)}>
+          Return to Login
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="px-5 pt-12 safe-top">
@@ -69,34 +104,77 @@ export function ProfileTab() {
           We send aggregated summaries (not raw records) to Claude when you
           request an insight. No tracking, no analytics, no server storage.
         </p>
-        <div className="mt-4">
-          {!confirmClear ? (
-            <Button variant="danger" onClick={() => setConfirmClear(true)}>
-              Clear all data
-            </Button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="danger"
-                onClick={async () => {
-                  await clearAllData();
-                  setHasSyncedSampleData(false);
-                  setConfirmClear(false);
-                  // Trigger a soft refresh-feel
-                  setProfile(await getProfile());
-                }}
-              >
-                Yes, clear everything
+        <div className="mt-4 flex flex-col gap-3">
+          <div>
+            {!confirmClear ? (
+              <Button variant="danger" onClick={() => setConfirmClear(true)}>
+                Clear local data
               </Button>
-              <Button variant="ghost" onClick={() => setConfirmClear(false)}>
-                Cancel
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="danger"
+                  onClick={async () => {
+                    await clearAllData();
+                    setHasSyncedSampleData(false);
+                    setConfirmClear(false);
+                    // Trigger a soft refresh-feel
+                    setProfile(await getProfile());
+                  }}
+                >
+                  Yes, clear local data
+                </Button>
+                <Button variant="ghost" onClick={() => setConfirmClear(false)}>
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
+          <div>
+            {!confirmDeleteAccount ? (
+              <Button variant="danger" onClick={() => setConfirmDeleteAccount(true)}>
+                Delete account
               </Button>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-danger">This will permanently delete your account and data from the cloud.</p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="danger"
+                    onClick={async () => {
+                      const { supabase } = await import('../../services/supabase');
+                      await supabase.rpc('delete_user');
+                      await supabase.auth.signOut();
+                      setIsAuthenticated(false);
+                    }}
+                  >
+                    Yes, delete account
+                  </Button>
+                  <Button variant="ghost" onClick={() => setConfirmDeleteAccount(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </Card>
 
-      <p className="text-[10px] text-textSecondary/40 text-center mt-6">
+      <div className="mt-6 flex justify-center">
+        <Button 
+          variant="ghost" 
+          className="!text-danger hover:!bg-danger/10 px-8" 
+          onClick={async () => {
+            const { supabase } = await import('../../services/supabase');
+            await supabase.auth.signOut();
+            setIsAuthenticated(false);
+          }}
+        >
+          Log Out
+        </Button>
+      </div>
+
+      <p className="text-[10px] text-textSecondary/40 text-center mt-6 mb-8">
         PulseIQ is educational and not a medical device.
       </p>
 

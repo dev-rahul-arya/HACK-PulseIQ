@@ -3,6 +3,16 @@ import { create } from 'zustand';
 export const TABS = ['today', 'timeline', 'insights', 'profile'];
 
 export const useStore = create((set) => ({
+  isAuthenticated: localStorage.getItem('pulseiq_auth') === 'true',
+  setIsAuthenticated: (val) => {
+    if (val) localStorage.setItem('pulseiq_auth', 'true');
+    else localStorage.removeItem('pulseiq_auth');
+    set({ isAuthenticated: val });
+  },
+
+  hasCompletedOnboarding: null,
+  setHasCompletedOnboarding: (val) => set({ hasCompletedOnboarding: val }),
+
   activeTab: 'today',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
