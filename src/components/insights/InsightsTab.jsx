@@ -9,6 +9,27 @@ import { getProfile } from '../../services/profile';
 import { fmtRelativeDate } from '../../utils/formatters';
 import { FeedbackButtons } from './FeedbackButtons';
 import { WeeklyReport } from './WeeklyReport';
+import { FollowUpChat } from './FollowUpChat';
+
+function summarizeContext(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return '';
+  const lines = [];
+  if (snapshot.sleepSummary) lines.push(`Sleep last night: ${snapshot.sleepSummary}`);
+  if (snapshot.restingHR != null) lines.push(`Resting HR: ${snapshot.restingHR} bpm (baseline ${snapshot.restingHRBaseline ?? '?'})`);
+  if (snapshot.hrv != null) lines.push(`HRV: ${snapshot.hrv} ms (baseline ${snapshot.hrvBaseline ?? '?'})`);
+  if (snapshot.steps != null) lines.push(`Steps today: ${snapshot.steps}, active min: ${snapshot.activeMinutes ?? '?'}`);
+  if (snapshot.mood) lines.push(`Mood logged: ${snapshot.mood}`);
+  if (snapshot.symptoms?.length) lines.push(`Symptoms: ${snapshot.symptoms.join(', ')}`);
+  if (snapshot.avgSleep7d) lines.push(`Avg sleep last 7d: ${snapshot.avgSleep7d}h`);
+  if (snapshot.avgRestingHR7d) lines.push(`Avg resting HR last 7d: ${snapshot.avgRestingHR7d} bpm`);
+  // Weekly snapshots have arrays — flatten the gist.
+  if (snapshot.sleepHoursByDay?.length) lines.push(`Sleep by day: ${snapshot.sleepHoursByDay.map((d) => `${d.date}=${d.hours}h`).join(', ')}`);
+  if (snapshot.restingHRByDay?.length) lines.push(`Resting HR by day: ${snapshot.restingHRByDay.map((d) => `${d.date}=${d.bpm}`).join(', ')}`);
+  if (snapshot.hrvByDay?.length) lines.push(`HRV by day: ${snapshot.hrvByDay.map((d) => `${d.date}=${d.ms}`).join(', ')}`);
+  if (snapshot.stepsByDay?.length) lines.push(`Steps by day: ${snapshot.stepsByDay.map((d) => `${d.date}=${d.steps}`).join(', ')}`);
+  if (snapshot.focusGoals?.length) lines.push(`Focus areas: ${snapshot.focusGoals.join(', ')}`);
+  return lines.join('\n');
+}
 
 export function InsightsTab() {
   const [hasData, setHasData] = useState(false);
@@ -61,7 +82,7 @@ export function InsightsTab() {
       const newId = await db.aiInsights.add({
         kind: 'weekly',
         date: new Date().toISOString().slice(0, 10),
-        payload: result,
+        payload: { ...result, dataSnapshot: payload },
         createdAt: new Date().toISOString(),
       });
       setWeeklyId(newId);
@@ -153,6 +174,14 @@ export function InsightsTab() {
                     </p>
                   )}
                   <FeedbackButtons insightId={weeklyId} />
+                  {weeklyId && (
+                    <FollowUpChat
+                      insightId={weeklyId}
+                      insightSummary={weekly.keyTakeaway || weekly.story?.slice(0, 200) || ''}
+                      contextSummary={summarizeContext(weekly.dataSnapshot)}
+                      focusGoals={weekly.dataSnapshot?.focusGoals}
+                    />
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -187,28 +216,36 @@ export function InsightsTab() {
                     </span>
                   </div>
                   <AnimatePresence initial={false}>
-                    {open && row.payload.nudge && (
+                    {open && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="mt-3 pt-3 border-t border-white/5">
-                          <p className="text-[11px] uppercase tracking-widest text-accent-recovery">
-                            Nudge
-                          </p>
-                          <p className="text-xs text-textSecondary/80 mt-1">
-                            {row.payload.nudge}
-                          </p>
-                          <p className="text-[10px] text-textSecondary/40 mt-2">
-                            Source: {row.payload.source}
-                            {row.payload.confidence != null
-                              ? ` · confidence ${row.payload.confidence}/5`
-                              : ''}
-                          </p>
-                          <FeedbackButtons insightId={row.id} compact />
-                        </div>
+                        {row.payload.nudge && (
+                          <div className="mt-3 pt-3 border-t border-white/5">
+                            <p className="text-[11px] uppercase tracking-widest text-accent-recovery">
+                              Nudge
+                            </p>
+                            <p className="text-xs text-textSecondary/80 mt-1">
+                              {row.payload.nudge}
+                            </p>
+                            <p className="text-[10px] text-textSecondary/40 mt-2">
+                              Source: {row.payload.source}
+                              {row.payload.confidence != null
+                                ? ` · confidence ${row.payload.confidence}/5`
+                                : ''}
+                            </p>
+                            <FeedbackButtons insightId={row.id} compact />
+                          </div>
+                        )}
+                        <FollowUpChat
+                          insightId={row.id}
+                          insightSummary={row.payload.insight}
+                          contextSummary={summarizeContext(row.payload.dataSnapshot)}
+                          focusGoals={row.payload.dataSnapshot?.focusGoals}
+                        />
                       </motion.div>
                     )}
                   </AnimatePresence>

@@ -141,6 +141,76 @@ Reply with ONLY a JSON object, no prose, no fences:
   }
 }
 
+const SYSTEM_FOLLOWUP = `You are PulseIQ, the same careful, kind health co-pilot
+that wrote the original insight the user is asking about. Stay grounded in the
+data they have just shared. NEVER diagnose, NEVER prescribe, NEVER speculate
+about clinical conditions. Cite the specific signal that supports each claim.
+If the data does not answer the question, say so plainly and suggest what to
+log or what a clinician could clarify. Keep replies short — one or two
+paragraphs, conversational, no headers, no bullet lists unless the user asks.`;
+
+// askFollowUp: lets the user ask Claude follow-up questions about an existing
+// insight. The caller supplies the original insight text, a stringified
+// snapshot of the user's recent data, the prior chat history, and the new
+// question. Returns the assistant's reply text plus a source flag.
+export async function askFollowUp({ insightSummary, contextSummary, history = [], question, focusGoals }) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return { text: "I can't reach Claude while you're offline — try again once you're back online.", source: 'offline' };
+  }
+  if (!question || !question.trim()) {
+    return { text: '', source: 'noop' };
+  }
+
+  const priorTurns = history
+    .filter((m) => m && m.role && m.content)
+    .slice(-12) // keep context lean
+    .map((m) => ({ role: m.role, content: m.content }));
+
+  const groundingPreface = `For grounding, here is the original insight and the data snapshot it was based on. Refer back to this data when answering.
+
+Original insight: "${insightSummary || '(no insight text)'}"
+
+Data snapshot:
+${contextSummary || '(no snapshot)'}`;
+
+  const messages = [
+    { role: 'user', content: groundingPreface },
+    { role: 'assistant', content: "Got it — I'll keep my answers grounded in that snapshot. What would you like to dig into?" },
+    ...priorTurns,
+    { role: 'user', content: question },
+  ];
+
+  try {
+    const res = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 600,
+        system: SYSTEM_FOLLOWUP + focusBlock(focusGoals),
+        messages,
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`Claude API ${res.status}: ${txt.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    const text = (data.content || [])
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n')
+      .trim();
+    return { text, source: 'claude' };
+  } catch (err) {
+    return {
+      text: "I couldn't reach Claude just now. Try again in a moment, or check that the Claude API key is set in your environment.",
+      source: 'fallback',
+      error: String(err.message || err),
+    };
+  }
+}
+
 // ---- Fallbacks for demo if API fails ----
 function mockDailyInsight(p) {
   const sleep = p.sleepSummary || 'about 7h';

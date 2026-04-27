@@ -6,6 +6,7 @@ import { RiskRing } from './RiskRing';
 import { MetricCard, Spark } from './MetricCard';
 import { InsightCard } from './InsightCard';
 import { LearningStrip } from './LearningStrip';
+import { HelplineSheet } from '../ui/HelplineSheet';
 import {
   daySummary,
   dailySeries,
@@ -32,6 +33,7 @@ export function TodayTab() {
   const [insight, setInsight] = useState(null);
   const [insightId, setInsightId] = useState(null);
   const [insightLoading, setInsightLoading] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   async function reload() {
     const seeded = await hasAnyData();
@@ -135,7 +137,7 @@ export function TodayTab() {
       const newId = await db.aiInsights.add({
         kind: 'daily',
         date: dk,
-        payload: result,
+        payload: { ...result, dataSnapshot: payload },
         createdAt: new Date().toISOString(),
       });
       setInsightId(newId);
@@ -215,6 +217,18 @@ export function TodayTab() {
               Circadian Risk reflects sleep debt, resting HR drift, HRV trend,
               and activity inconsistency.
             </p>
+            {risk.score >= 50 && (
+              <motion.button
+                type="button"
+                onClick={() => setHelpOpen(true)}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-3 px-4 py-2 rounded-full bg-accent-mental/15 border border-accent-mental/40 text-accent-mental text-xs font-medium focus-visible:ring-2 focus-visible:ring-accent-mental/60 outline-none"
+                aria-label="Get help — open helpline numbers"
+              >
+                Get help · talk to someone
+              </motion.button>
+            )}
           </motion.div>
 
           <div className="mb-5">
@@ -331,6 +345,12 @@ export function TodayTab() {
           />
         </>
       )}
+
+      <HelplineSheet
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        leadingMessage="Your circadian-risk score is elevated. PulseIQ can't tell you what's driving it — these helplines can. All free."
+      />
 
       {/* Floating add-data button */}
       <motion.button

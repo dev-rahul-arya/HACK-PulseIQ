@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { ConnectedApps } from './ConnectedApps';
 import { ReminderSettings } from './ReminderSettings';
 import { DoctorReportCard } from './DoctorReportCard';
+import { HelplineCard } from '../ui/HelplineCard';
 import { getProfile, saveProfile } from '../../services/profile';
 import { clearAllData } from '../../db/db';
 import { useStore } from '../../store/useStore';
@@ -93,6 +94,8 @@ export function ProfileTab() {
       </Card>
 
       <ConnectedApps />
+
+      <HelplineCard />
 
       <ReminderSettings />
 
