@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { dayKey } from '../../db/db';
 
@@ -10,8 +11,17 @@ export function DaySelector({ selected, onSelect, days = 14 }) {
     d.setDate(d.getDate() - i);
     items.push(d);
   }
+  const scrollerRef = useRef(null);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    // Park the scroll at the rightmost end so today is in view.
+    el.scrollLeft = el.scrollWidth;
+  }, []);
+
   return (
-    <div className="-mx-5 px-5 overflow-x-auto">
+    <div ref={scrollerRef} className="-mx-5 px-5 overflow-x-auto">
       <div className="flex gap-2 min-w-max pb-2">
         {items.map((d) => {
           const k = dayKey(d);

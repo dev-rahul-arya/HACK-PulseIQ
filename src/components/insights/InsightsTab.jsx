@@ -27,6 +27,13 @@ function summarizeContext(snapshot) {
   if (snapshot.restingHRByDay?.length) lines.push(`Resting HR by day: ${snapshot.restingHRByDay.map((d) => `${d.date}=${d.bpm}`).join(', ')}`);
   if (snapshot.hrvByDay?.length) lines.push(`HRV by day: ${snapshot.hrvByDay.map((d) => `${d.date}=${d.ms}`).join(', ')}`);
   if (snapshot.stepsByDay?.length) lines.push(`Steps by day: ${snapshot.stepsByDay.map((d) => `${d.date}=${d.steps}`).join(', ')}`);
+  if (snapshot.recentLogs?.length) {
+    const logs = snapshot.recentLogs
+      .slice(0, 10)
+      .map((l) => `${l.when?.slice(0, 16) || '?'} ${l.category}=${l.value}`)
+      .join('; ');
+    lines.push(`Recent manual logs: ${logs}`);
+  }
   if (snapshot.focusGoals?.length) lines.push(`Focus areas: ${snapshot.focusGoals.join(', ')}`);
   return lines.join('\n');
 }

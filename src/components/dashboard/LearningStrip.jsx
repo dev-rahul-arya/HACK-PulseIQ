@@ -31,7 +31,7 @@ export function LearningStrip({ snapshot }) {
       </div>
 
       <div
-        className="-mx-5 px-5 flex gap-3 overflow-x-auto snap-x snap-mandatory"
+        className="-mx-5 px-5 flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-pl-5 scroll-pr-5"
         role="list"
       >
         {ordered.map((m, i) => (

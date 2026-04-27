@@ -165,17 +165,20 @@ export async function askFollowUp({ insightSummary, contextSummary, history = []
     .filter((m) => m && m.role && m.content)
     .slice(-12) // keep context lean
     .map((m) => ({ role: m.role, content: m.content }));
+  // Drop any leading assistant turn so messages always start with 'user'.
+  while (priorTurns.length && priorTurns[0].role !== 'user') priorTurns.shift();
 
-  const groundingPreface = `For grounding, here is the original insight and the data snapshot it was based on. Refer back to this data when answering.
+  const fullSystem = `${SYSTEM_FOLLOWUP}${focusBlock(focusGoals)}
 
-Original insight: "${insightSummary || '(no insight text)'}"
+The user is asking follow-up questions about this insight you previously gave them:
+"${insightSummary || '(no prior insight text)'}"
 
-Data snapshot:
-${contextSummary || '(no snapshot)'}`;
+Here is the data snapshot the insight was based on. Cite specific numbers from this snapshot in every answer. If a question can't be answered from this data, say so plainly and suggest what to log next.
+
+DATA SNAPSHOT:
+${contextSummary || '(snapshot unavailable — answer using general knowledge but tell the user this insight was generated before snapshots were saved, and suggest regenerating it from the Today tab)'}`;
 
   const messages = [
-    { role: 'user', content: groundingPreface },
-    { role: 'assistant', content: "Got it — I'll keep my answers grounded in that snapshot. What would you like to dig into?" },
     ...priorTurns,
     { role: 'user', content: question },
   ];
@@ -187,7 +190,7 @@ ${contextSummary || '(no snapshot)'}`;
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 600,
-        system: SYSTEM_FOLLOWUP + focusBlock(focusGoals),
+        system: fullSystem,
         messages,
       }),
     });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { dailySeries } from '../../db/queries';
 import { fmtHours, fmtNumber } from '../../utils/formatters';
@@ -180,13 +180,49 @@ function Stat({ label, value, delta, deltaUnit, color, higherIsBetter, isPercent
 function DayBars({ values, color, target, unit }) {
   const max = Math.max(...values, target ?? 0) * 1.05 || 1;
   const labels = lastSevenDayLabels();
+  const [active, setActive] = useState(null);
+
+  function fmtVal(v) {
+    if (v == null || !Number.isFinite(v)) return '—';
+    if (unit === 'h') return `${Number(v).toFixed(1)}${unit}`;
+    if (unit === '') return Math.round(v).toLocaleString();
+    return `${Math.round(v)}${unit}`;
+  }
+
   return (
-    <div className="flex items-end gap-1.5 h-20">
+    <div
+      className="flex items-end gap-1.5 h-24"
+      onMouseLeave={() => setActive(null)}
+    >
       {values.map((v, i) => {
         const h = max > 0 ? Math.max(2, (v / max) * 100) : 0;
+        const isActive = active === i;
         return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full">
+          <button
+            key={i}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActive(isActive ? null : i);
+            }}
+            aria-label={`${labels[i]}: ${fmtVal(v)}`}
+            className="flex-1 flex flex-col items-center gap-1 h-full outline-none focus-visible:ring-2 focus-visible:ring-accent-mental/60 rounded-md"
+          >
             <div className="flex-1 w-full flex items-end relative">
+              <AnimatePresence>
+                {isActive && (
+                  <motion.span
+                    key="label"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    className="absolute left-1/2 -translate-x-1/2 -top-0.5 text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded-md bg-elevated/90 border border-white/10 whitespace-nowrap z-10"
+                    style={{ color }}
+                  >
+                    {fmtVal(v)}
+                  </motion.span>
+                )}
+              </AnimatePresence>
               {target != null && (
                 <div
                   aria-hidden="true"
@@ -199,12 +235,22 @@ function DayBars({ values, color, target, unit }) {
                 animate={{ height: `${h}%` }}
                 transition={{ delay: i * 0.04, type: 'spring', stiffness: 120, damping: 18 }}
                 className="w-full rounded-md"
-                style={{ background: color, opacity: v ? 0.85 : 0.15 }}
-                title={`${v}${unit}`}
+                style={{
+                  background: color,
+                  opacity: v ? (isActive ? 1 : 0.85) : 0.15,
+                  boxShadow: isActive ? `0 0 0 1px ${color}80` : 'none',
+                }}
               />
             </div>
-            <span className="text-[9px] text-textSecondary/50">{labels[i]}</span>
-          </div>
+            <span
+              className={
+                'text-[9px] tabular-nums ' +
+                (isActive ? 'text-textPrimary' : 'text-textSecondary/50')
+              }
+            >
+              {labels[i]}
+            </span>
+          </button>
         );
       })}
     </div>

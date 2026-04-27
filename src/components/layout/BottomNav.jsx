@@ -80,7 +80,8 @@ export function BottomNav({ activeTab }) {
                 {active && (
                   <motion.span
                     layoutId="nav-pill"
-                    className="absolute -top-px left-1/2 -translate-x-1/2 h-[2px] w-8 bg-white rounded-full"
+                    aria-hidden="true"
+                    className="absolute -top-[9px] left-1/2 -translate-x-1/2 h-[2px] w-8 bg-white rounded-full"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
