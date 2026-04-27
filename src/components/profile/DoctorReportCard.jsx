@@ -13,6 +13,7 @@ const RANGE_OPTIONS = [
 
 const SECTION_OPTIONS = [
   { key: 'vitals', label: 'Vitals trends' },
+  { key: 'weeklyReport', label: 'Weekly health report' },
   { key: 'insights', label: 'AI insights' },
   { key: 'logs', label: 'Manual logs & symptoms' },
 ];
@@ -20,7 +21,7 @@ const SECTION_OPTIONS = [
 export function DoctorReportCard() {
   const [open, setOpen] = useState(false);
   const [days, setDays] = useState(30);
-  const [sections, setSections] = useState({ vitals: true, insights: true, logs: true });
+  const [sections, setSections] = useState({ vitals: true, weeklyReport: true, insights: true, logs: true });
   const [busy, setBusy] = useState(false);
   const [lastError, setLastError] = useState(null);
 

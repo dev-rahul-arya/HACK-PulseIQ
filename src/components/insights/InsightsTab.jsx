@@ -8,6 +8,7 @@ import { getWeeklyStory } from '../../services/ai';
 import { getProfile } from '../../services/profile';
 import { fmtRelativeDate } from '../../utils/formatters';
 import { FeedbackButtons } from './FeedbackButtons';
+import { WeeklyReport } from './WeeklyReport';
 
 export function InsightsTab() {
   const [hasData, setHasData] = useState(false);
@@ -88,6 +89,8 @@ export function InsightsTab() {
 
       {hasData && (
         <>
+          <WeeklyReport />
+
           <Card className="!p-5 mb-4">
             <div className="flex items-start justify-between gap-3">
               <div>

@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { RiskRing } from './RiskRing';
 import { MetricCard, Spark } from './MetricCard';
 import { InsightCard } from './InsightCard';
+import { LearningStrip } from './LearningStrip';
 import {
   daySummary,
   dailySeries,
@@ -309,6 +310,25 @@ export function TodayTab() {
               ))}
             </div>
           </Card>
+
+          <LearningStrip
+            snapshot={{
+              restingHR: summary.restingHR?.value,
+              restingHRBaseline:
+                hrSpark.length >= 4
+                  ? Math.round(
+                      hrSpark.slice(0, -1).reduce((a, b) => a + b, 0) /
+                        Math.max(1, hrSpark.length - 1)
+                    )
+                  : null,
+              hrv: summary.hrv?.value,
+              hrvBaseline: null,
+              sleepHours: summary.sleep?.value ?? null,
+              steps: summary.steps,
+              activeMinutes: summary.activeMinutes,
+              mood: moodToday,
+            }}
+          />
         </>
       )}
 

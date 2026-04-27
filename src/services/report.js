@@ -1,5 +1,6 @@
 import { db } from '../db/db';
 import { dailySeries } from '../db/queries';
+import { buildWeeklyReport } from '../utils/weeklyReport';
 
 function escapeHtml(s) {
   return String(s ?? '')
@@ -41,6 +42,93 @@ function sparklineSvg(values, color = '#5E5CE6') {
   </svg>`;
 }
 
+function fmtDelta(delta, unit, opts = {}) {
+  if (delta == null || !Number.isFinite(delta)) return '<span class="muted">no prior-week data</span>';
+  const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '·';
+  const goodDir = opts.higherIsBetter
+    ? delta > 0
+    : opts.higherIsBetter === false
+    ? delta < 0
+    : null;
+  const color = goodDir === true ? '#1b5e20' : goodDir === false ? '#b71c1c' : '#666';
+  const abs = opts.percent
+    ? Math.round(Math.abs(delta))
+    : Number(Math.abs(delta).toFixed(opts.decimals ?? 1));
+  const suffix = opts.percent ? '%' : unit ? ` ${unit}` : '';
+  return `<span style="color:${color}">${arrow} ${abs}${suffix}</span>`;
+}
+
+function barChartSvg(values, target, color) {
+  if (!values || values.length === 0) return '';
+  const w = 320;
+  const h = 60;
+  const pad = 4;
+  const max = Math.max(...values, target ?? 0) * 1.05 || 1;
+  const barW = (w - pad * 2) / values.length - 4;
+  const targetY = target != null ? h - pad - (target / max) * (h - pad * 2) : null;
+  const bars = values
+    .map((v, i) => {
+      const bh = max > 0 ? Math.max(2, (v / max) * (h - pad * 2)) : 0;
+      const x = pad + i * (barW + 4);
+      const y = h - pad - bh;
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}" opacity="${v ? 0.85 : 0.2}" rx="2" />`;
+    })
+    .join('');
+  const targetLine =
+    targetY != null
+      ? `<line x1="${pad}" x2="${w - pad}" y1="${targetY.toFixed(1)}" y2="${targetY.toFixed(1)}" stroke="#999" stroke-width="1" stroke-dasharray="3 3" />`
+      : '';
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" aria-hidden="true">${targetLine}${bars}</svg>`;
+}
+
+function renderWeeklyBlock(weekly) {
+  if (!weekly || weekly.empty) {
+    return `<section>
+      <h2>Weekly health report</h2>
+      <p class="muted">Not enough recent data for a 7-day comparison.</p>
+    </section>`;
+  }
+  const s = weekly.stats;
+  const sleepVal = s.sleep.value != null ? `${s.sleep.value.toFixed(1)} h` : '—';
+  const hrVal = s.restingHR.value != null ? `${Math.round(s.restingHR.value)} bpm` : '—';
+  const hrvVal = s.hrv.value != null ? `${Math.round(s.hrv.value)} ms` : '—';
+  const stepsVal = s.steps.total ? s.steps.total.toLocaleString() : '—';
+
+  const highlightsHtml = weekly.highlights.length
+    ? `<ul class="highlights">${weekly.highlights
+        .map((h) => `<li><span class="dot" style="background:${h.color}"></span>${escapeHtml(h.text)}</li>`)
+        .join('')}</ul>`
+    : '<p class="muted">No notable shifts this week.</p>';
+
+  return `<section>
+    <h2>Weekly health report <span class="meta">· ${escapeHtml(weekly.range)}</span></h2>
+    <p class="muted" style="margin-top:-4px">Last 7 days vs. the 7 before that.</p>
+    <table class="stat-grid">
+      <thead>
+        <tr><th>Signal</th><th>This week</th><th>Δ vs. prior week</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">Avg sleep</th><td>${sleepVal}</td><td>${fmtDelta(s.sleep.delta, 'h', { higherIsBetter: true })}</td></tr>
+        <tr><th scope="row">Avg resting HR</th><td>${hrVal}</td><td>${fmtDelta(s.restingHR.delta, 'bpm', { higherIsBetter: false, decimals: 0 })}</td></tr>
+        <tr><th scope="row">Avg HRV</th><td>${hrvVal}</td><td>${fmtDelta(s.hrv.delta, 'ms', { higherIsBetter: true, decimals: 0 })}</td></tr>
+        <tr><th scope="row">Total steps</th><td>${stepsVal}</td><td>${fmtDelta(s.steps.delta, '', { higherIsBetter: true, percent: true })}</td></tr>
+      </tbody>
+    </table>
+    <div class="charts">
+      <div class="chart">
+        <h3>Sleep this week (target 7.5h)</h3>
+        ${barChartSvg(weekly.charts.sleep, 7.5, '#5E5CE6')}
+      </div>
+      <div class="chart">
+        <h3>Steps this week (target 8k)</h3>
+        ${barChartSvg(weekly.charts.steps, 8000, '#FF9F0A')}
+      </div>
+    </div>
+    <h3 class="hl-title">Highlights</h3>
+    ${highlightsHtml}
+  </section>`;
+}
+
 function tableRow(label, valueHtml, sparkHtml) {
   return `<tr>
     <th scope="row">${escapeHtml(label)}</th>
@@ -52,6 +140,7 @@ function tableRow(label, valueHtml, sparkHtml) {
 export async function buildDoctorReport({ profile, days = 30, sections }) {
   const include = {
     vitals: sections?.vitals !== false,
+    weeklyReport: sections?.weeklyReport !== false,
     insights: sections?.insights !== false,
     logs: sections?.logs !== false,
   };
@@ -83,6 +172,25 @@ export async function buildDoctorReport({ profile, days = 30, sections }) {
 
   const generatedAt = new Date().toLocaleString();
   const rangeLabel = `${new Date(Date.now() - days * 86400000).toLocaleDateString()} – ${new Date().toLocaleDateString()}`;
+
+  let weeklyBlock = '';
+  if (include.weeklyReport) {
+    const [w14sleep, w14hr, w14hrv, w14steps] = days >= 14
+      ? [sleep, restingHR, hrv, steps]
+      : await Promise.all([
+          dailySeries('sleep', 14),
+          dailySeries('restingHR', 14),
+          dailySeries('hrv', 14),
+          dailySeries('steps', 14),
+        ]);
+    const weekly = buildWeeklyReport({
+      sleep: w14sleep,
+      hr: w14hr,
+      hrv: w14hrv,
+      steps: w14steps,
+    });
+    weeklyBlock = renderWeeklyBlock(weekly);
+  }
 
   const vitalsBlock = include.vitals
     ? `<section>
@@ -176,7 +284,17 @@ export async function buildDoctorReport({ profile, days = 30, sections }) {
   .story + .story { margin-top: 6px; }
   .muted { color: #888; font-size: 13px; }
   footer { margin-top: 36px; border-top: 1px solid #ddd; padding-top: 12px; color: #888; font-size: 12px; }
-  @media print { body { padding: 0; } }
+  table.stat-grid th { font-weight: 600; }
+  table.stat-grid td:nth-child(2) { font-variant-numeric: tabular-nums; font-weight: 600; }
+  table.stat-grid td:nth-child(3) { font-variant-numeric: tabular-nums; font-size: 13px; }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0 8px; }
+  .charts .chart h3 { font-size: 12px; color: #555; margin: 0 0 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .hl-title { font-size: 13px; color: #555; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .highlights { list-style: none; padding: 0; margin: 0; }
+  .highlights li { display: flex; gap: 8px; padding: 6px 0; font-size: 13px; line-height: 1.5; }
+  .highlights .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  @media print { body { padding: 0; } .charts { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 540px) { .charts { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -189,6 +307,7 @@ export async function buildDoctorReport({ profile, days = 30, sections }) {
     <strong>Educational summary.</strong> PulseIQ is not a medical device and does not diagnose. The figures below come from the user's wearable, manual logs, and AI-generated explanations. Use as a discussion starting point with a clinician.
   </div>
   ${vitalsBlock}
+  ${weeklyBlock}
   ${insightsBlock}
   ${logsBlock}
   <footer>
