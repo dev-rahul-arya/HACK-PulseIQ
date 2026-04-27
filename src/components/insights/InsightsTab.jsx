@@ -85,7 +85,7 @@ export function InsightsTab() {
         focusGoals: profile?.goals ?? [],
       };
       const result = await getWeeklyStory(payload);
-      setWeekly(result);
+      setWeekly({ ...result, dataSnapshot: payload });
       const newId = await db.aiInsights.add({
         kind: 'weekly',
         date: new Date().toISOString().slice(0, 10),
